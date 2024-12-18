@@ -13,7 +13,6 @@ from transformers import (
     MarianTokenizer,
     M2M100ForConditionalGeneration, 
     M2M100Tokenizer,
-    pipeline
 )
 
 # language detection
@@ -406,23 +405,19 @@ def translate_content(content, model, tokenizer, args, trg_lang=None, remove_per
                         else:
                             if "opus" in args.model:
                                 input_ids = tokenizer.encode(paragraph, return_tensors="pt").to('cuda')
-                                print("***** LEN input_ids:", len(input_ids[0]), "*****")
-                                if len(input_ids[0]) < 1024:
-                                    output = model.generate(input_ids=input_ids,
+                                output = model.generate(input_ids=input_ids,
+                                            eos_token_id=tokenizer.eos_token_id,
+                                            pad_token_id=tokenizer.pad_token_id,
+                                            max_new_tokens=args.max_new_tokens
+                                            )
+                                result = tokenizer.decode(output[0], skip_special_tokens=True) 
+                            elif "nllb" in args.model:
+                                input_ids = tokenizer.encode(paragraph, return_tensors="pt", padding=True).to('cuda')
+                                output = model.generate(
+                                                input_ids=input_ids,
                                                 eos_token_id=tokenizer.eos_token_id,
                                                 pad_token_id=tokenizer.pad_token_id,
                                                 max_new_tokens=args.max_new_tokens
-                                                )
-                                    result = tokenizer.decode(output[0], skip_special_tokens=True) 
-                                else:
-                                    print("Cannot translate current paragraph. Skipping this content,")
-                                    valid_entry = False
-                            elif "nllb" in args.model:
-                                input_ids = tokenizer.encode(paragraph, return_tensors="pt", padding = True).to('cuda')
-                                output = model.generate(input_ids=input_ids,
-                                                eos_token_id=tokenizer.eos_token_id,
-                                                pad_token_id=tokenizer.pad_token_id,
-                                                max_new_tokens=1024, # args.max_new_tokens
                                                 forced_bos_token_id=tokenizer.lang_code_to_id[trg_lang])
                                 result = tokenizer.decode(output[0], skip_special_tokens=True)
                             elif "m2m" in args.model:
@@ -431,7 +426,7 @@ def translate_content(content, model, tokenizer, args, trg_lang=None, remove_per
                                 output = model.generate(input_ids=input_ids,
                                                 eos_token_id=tokenizer.eos_token_id,
                                                 pad_token_id=tokenizer.pad_token_id,
-                                                max_new_tokens=1024, # args.max_new_tokens,
+                                                max_new_tokens=args.max_new_tokens,
                                                 forced_bos_token_id=tokenizer.get_lang_id(trg_lang))
                                 result = tokenizer.decode(output[0], skip_special_tokens=True)
                             else:
@@ -671,12 +666,6 @@ def load_model(args):
             device_map='auto',
             torch_dtype=torch.bfloat16,
             trust_remote_code=args.trust_remote_code,
-            # cache_dir=args.transformers_cache,
-            # attn_implementation='flash_attention_2',
-            # offload_folder="./offload",
-            # max_memory={
-            #     device_idx: '64GB' for device_idx in range(torch.cuda.device_count())
-            #     },
         )
     model.eval()
     return model

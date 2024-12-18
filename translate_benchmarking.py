@@ -384,18 +384,10 @@ def generate(prompt, model, tokenizer, args, end_token, skip_special_tokens=Fals
             eos_token_id = [eos_token_id]
             end_token_ids = tokenizer.encode(end_token)
             eos_token_id.extend(end_token_ids)
-            print("end_token:", end_token)
-            print("end_token_ids:", end_token_ids)
-            print("eos_token_id:", eos_token_id)
-            print("eos_token_id:", eos_token_id)
         else:
             end_token_ids = tokenizer.encode(end_token)[0]
             eos_token_id = [eos_token_id]
             eos_token_id.append(end_token_ids)
-            print("end_token:", end_token)
-            print("end_token_ids:", end_token_ids)
-            print("eos_token_id:", eos_token_id)
-            print("eos_token_id:", eos_token_id)
     
     print("--"*30)
     print(f"PROMPT:\n{prompt}")
@@ -410,27 +402,8 @@ def generate(prompt, model, tokenizer, args, end_token, skip_special_tokens=Fals
             eos_token_id=eos_token_id,
             # max_new_tokens=args.max_new_tokens,
             max_length=dynamic_max_length,
-            # truncation=True,
             stopping_criteria=StoppingCriteriaList([stop_on_token_criteria])
         )
-    # elif "eurollm" in args.model.lower():
-    #     # print("Using EuroLLM stopping criteria")
-    #     # stop_on_token_criteria = EuroLLMStoppingCriteria(stops=[4])
-    #     output = model.generate(
-    #         input_ids,
-    #         max_new_tokens=args.max_new_tokens,
-    #         eos_token_id=eos_token_id,
-    #         # max_new_tokens=args.max_new_tokens,
-    #         # stopping_criteria=StoppingCriteriaList([stop_on_token_criteria])
-    #     )
-    # elif "mistral" in args.model.lower():
-    #     stop_on_token_criteria = Llama3StopOnTokenCriteria(stop_token_id=tokenizer.eos_token_id)
-    #     output = model.generate(
-    #         input_ids,
-    #         eos_token_id=eos_token_id,
-    #         max_new_tokens=args.max_new_tokens,
-    #         stopping_criteria=StoppingCriteriaList([stop_on_token_criteria])
-    #     )
     else:
         output = model.generate(
             input_ids,
@@ -438,29 +411,14 @@ def generate(prompt, model, tokenizer, args, end_token, skip_special_tokens=Fals
             max_new_tokens=args.max_new_tokens,
         )
     result =  tokenizer.decode(output[0], skip_special_tokens=skip_special_tokens)
-    # print(f"\nRAW RESULT:\n{result}")
     if "gpt-sw3" in args.model:
         # print("GPT-SW3 RESULT 1:", result)
         result = result.split("<s> Bot: ")[-1].strip()
         if result.endswith(end_token):
             result = result[:-len(end_token)]
-    # elif "salamandra" in args.model.lower():
-    #     # result = result.strip().split("\n")[-1]
-    #     lines = result.strip().split("\n")
-    #     print("LINES:")
-    #     for line_index, line in enumerate(lines):
-    #         print(f"{line_index}: {line}")
     elif "llama" in args.model.lower() or "salamandra" in args.model.lower():
-        # lines = result.strip().split("\n")
-        # print("LINES:")
-        # for line_index, line in enumerate(lines):
-        #     print(f"{line_index+1}: {line}")
         result = result.strip().split("\n")[25].strip()
     else:
-        # lines = result.strip().split("\n")
-        # print("LINES:")
-        # for line_index, line in enumerate(lines):
-        #     print(f"{line_index+1}: {line}")
         if result.endswith(end_token):
             result = result[:-len(end_token)]
         if result.endswith(tokenizer.eos_token):
@@ -590,7 +548,6 @@ def translate_sentences(model, tokenizer, src_sentences, trg_sentences, args):
                     else:
                         prompt = format_prompt_src_equals_trg(src_sent, src_sents, trg_sents, template=LLAMA3_SRC_EQUALS_TRG_TEMPLATE, end_token = LLAMA_3_END)
                         result = generate(prompt, model, tokenizer, args, end_token=LLAMA_3_END, skip_special_tokens=True)
-                # EuroLLM models
                 elif "eurollm" in args.model.lower():
                     # print("EuroLLM model -- use EuroLLM prompt format")
                     prompt = format_prompt_eurollm(src_sent, src_sents, trg_sents, src_lang, trg_lang)
@@ -603,10 +560,7 @@ def translate_sentences(model, tokenizer, src_sentences, trg_sentences, args):
                     result = generate(prompt, model, tokenizer, args, end_token="\n", skip_special_tokens=True)
                 elif "salamandra" in args.model.lower():
                     prompt = format_prompt_cpt(src_sent, src_sents, trg_sents, src_lang, trg_lang)
-                    result = generate(prompt, model, tokenizer, args, end_token="\n\n", skip_special_tokens=True)
-                # elif "mistral" in args.model.lower():
-                #     prompt = format_prompt_mistral_cpt(src_sent, src_sents, trg_sents, src_lang, trg_lang)
-                #     result = generate(prompt, model, tokenizer, args, end_token="\n\n", skip_special_tokens=True)                    
+                    result = generate(prompt, model, tokenizer, args, end_token="\n\n", skip_special_tokens=True)                  
             # print(i+1, "src:", src_sent)
             # print("\n pred:", result)
             # print("\n  trg:", trg_sentences[i])
@@ -650,10 +604,7 @@ def format_general_prompt(new_sent, src_sents, trg_sents, src_lang, trg_lang):
     return prompt
 
 def format_prompt_cpt(new_sent, src_sents, trg_sents, src_lang, trg_lang):
-    # if src_lang == "eng":
     template = CPT_ENG_TEMPLATE
-    # else:
-    #     template = MISTRAL_CPT_FIN_TEMPLATE
     prompts = []
     for src, trg in zip(src_sents, trg_sents):
         text = template.format(trg_lang=TRG_LANGUAGE['eng'][trg_lang],
@@ -696,20 +647,11 @@ def format_prompt_emma500(new_sent, src_sents, trg_sents, src_lang, trg_lang):
 def format_prompt_eurollm(new_sent, src_sents, trg_sents, src_lang, trg_lang):
     template = EUROLLM_TEMPLATE
     prompts = []
-    # for src, trg in zip(src_sents, trg_sents):
-    #     text = template.format(src_lang=TRG_LANGUAGE['eng'][src_lang], 
-    #                            src=src, 
-    #                            trg_lang=TRG_LANGUAGE['eng'][trg_lang],
-    #                            trg=trg
-    #                            ).strip()
-    #     prompts.append(text)
     assistant_prompt = template.format(src_lang=TRG_LANGUAGE['eng'][src_lang], 
                                        src=new_sent, 
                                        trg_lang=TRG_LANGUAGE['eng'][trg_lang],
                                        trg=""
                                        ).strip()
-    # prompts.append(assistant_prompt)
-    # prompt = "\n".join(prompts).strip()
     return assistant_prompt
 
 def format_prompt_gpt_swe(new_sent, src_sents, trg_sents, src_lang, trg_lang):
@@ -733,15 +675,8 @@ def format_prompt_gpt_swe(new_sent, src_sents, trg_sents, src_lang, trg_lang):
         asst=DEFAULT_ASST_START,
         end=DEFAULT_END)
     prompt = "\n".join(prompts)
-    # print("--"*20)
-    # print("prompt:", prompts)
-    # print("--"*20)
-    # print("assistant_prompt:", assistant_prompt)
     assistant_prompt = assistant_prompt[:-len(DEFAULT_END)]
-    # print("--"*20)
     prompt = prompt + "\n" + assistant_prompt
-    # print("GPT-SWE PROMPT:", prompt)
-    # print("--"*20)
     return prompt
 
 def format_prompt_gpt_swe_translator(new_sent, src_lang, trg_lang):
@@ -772,13 +707,9 @@ def format_prompt_chatml(new_sent, src_sents, trg_sents, src_lang, trg_lang):
     prompt = "\n".join(prompts)
     assistant_prompt = assistant_prompt[:-len(DEFAULT_END)]
     prompt = prompt + "\n" + assistant_prompt
-    # print("--"*20)
-    # print("VIKING PROMPT:", prompt)
-    # print("--"*20)
     return prompt
 
 def format_prompt_src_equals_trg(new_sent, src_sents, trg_sents, template, end_token="END"):
-    # template = SRC_EQUALS_TRG_TEMPLATE
     prompts = []
     for src, trg in zip(src_sents, trg_sents):
         text = template.format(
@@ -843,9 +774,7 @@ def load_model(args):
             device_map=args.device_map,
             torch_dtype=DTYPE_MAP[args.dtype],
             trust_remote_code=args.trust_remote_code,
-            # cache_dir=args.transformers_cache,
         )
-        #model.to('cuda')
     model.eval()
     return model
 
@@ -879,7 +808,6 @@ def main(argv):
     model = load_model(args)
     if args.memory_usage:
         report_memory_usage('after model load')
-    # load src sentences
     if ".jsonl" in args.src_file:
         src_sentences = [json.loads(line) for line in open(args.src_file)]
         src_sentences = [sent['sentence'].rstrip() for sent in src_sentences]
@@ -887,7 +815,6 @@ def main(argv):
         src_sentences = open(args.src_file).readlines()
         src_sentences = [src.rstrip() for src in src_sentences]
     print("src_sentences:", len(src_sentences))
-    # load target sentences
     if ".jsonl" in args.trg_file:
         trg_sentences = [json.loads(line) for line in open(args.trg_file)]
         trg_sentences = [sent['sentence'].rstrip() for sent in trg_sentences]
@@ -896,7 +823,6 @@ def main(argv):
         trg_sentences = [trg.rstrip() for trg in trg_sentences]
     print("trg_sentences:", len(trg_sentences))
     predictions = translate_sentences(model, tokenizer, src_sentences, trg_sentences, args)
-    # print("Model:", args.model)
     print("--- Done translating. Outputs saved to", args.output_file, "---")
     print("--- Computing spBLEU score ---")
     print("predictions:", len(predictions))
@@ -905,6 +831,7 @@ def main(argv):
     print("-"*20)
     print("| spBLEU score:", spbleu_score, "|")
     print("-"*20)
+    # compute score for first 100 FLORES sentences
     if args.test_data == "flores-101" and len(predictions) > 100:
         spbleu_score = compute_spbleu_score(predictions[:100], trg_sentences[:100])
         print("-"*20)
