@@ -22,6 +22,7 @@ python translate_benchmarking.py \
 `translate_benchmarking_chat.py`: This is for benchmarking the translation capability of chat-tuned models (e.g. Poro-34B-Chat, Llama-3.1-8B-Instruct). We can evaluate the chat model with zero-shot prompting (no in-context examples) or with few-shot prompting. The script automatically applies the chat template indicated in the tokenizer config (`tokenizer_config.json`).
 
 ### Example usage
+This uses Poro-34B-chat to translate the first 100 sentences of FLORES-101 from English to Finnish with zero-shot prompting.
 ```
     python translate_benchmarking_chat.py \
                 --model LumiOpen/Poro-34B-chat \
