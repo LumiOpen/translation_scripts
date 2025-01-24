@@ -1,0 +1,139 @@
+from transformers import MarianMTModel, MarianTokenizer, AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+import pandas as pd
+import argparse
+from tqdm import tqdm
+import os
+tqdm.pandas() 
+
+"""
+This script translates an mt bench question file from English to a target language.
+It assumes that the text to be translated is in the column turn and references and is a flat list. 
+It checks whether an Opus model exist for the English -> target language and if not:
+use NLLB instead. 
+Author: Maria
+"""
+
+def opus_model_exists(model_name: str) -> bool:
+    try:
+        MarianTokenizer.from_pretrained(model_name)
+        MarianTokenizer.from_pretrained(model_name)
+        return True
+    except Exception as e:
+        print(f"Model {model_name} does not exist")
+        return False
+
+def translate_opus(text: str, tokenizer, model) -> str:
+    # Tokenize the input text
+    inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True)
+    
+    # Generate translation
+    translated = model.generate(**inputs)
+    
+    # Decode the generated tokens
+    translated_text = tokenizer.decode(translated[0], skip_special_tokens=True)
+    
+    return translated_text
+
+def translate_nllb(text: str, tokenizer, model, src_lang:str, tgt_lang:str) -> str:
+    translator = pipeline('translation', 
+                model=model, 
+                tokenizer=tokenizer, 
+                src_lang=src_lang, 
+                tgt_lang=tgt_lang, 
+                max_length = 400)
+    output = translator(text)
+    translated_text = output[0]['translation_text']
+    return translated_text
+
+def load_iso2nllb_map(filepath):
+    iso2nllb_dict = {}
+    with open(filepath, 'r') as file:
+        for line in file:
+            if line.strip():  # Skip empty lines
+                two_letter_code, long_code = line.strip().split()
+                iso2nllb_dict[two_letter_code] = long_code
+    return iso2nllb_dict
+
+def map_lang_code(two_letter_code, iso2nllb_dict):
+    return iso2nllb_dict.get(two_letter_code, "Unknown code")
+
+    
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Translate text using a specified model.")
+    #parser.add_argument('--src_lang', type=str, required=False, default='en', help="Source language code - two letter iso. Only supports English at the moment")
+    parser.add_argument('--tgt-lang', type=str, required=True, help="Target language code - two-letter iso")
+    parser.add_argument('--source-file', type=str, required=False, default='/scratch/project_462000353/maribarr/FastChat/fastchat/llm_judge/data/mt_bench/question.jsonl', help="Path to the English source file")
+    parser.add_argument('--output-dir', type=str, required=True, help="Path to the output file")
+    parser.add_argument('--max-samples', type=int, default=None, help="Only take top n rows")
+    args = parser.parse_args()
+    
+    # Load the model and tokenizer
+    model_name = f'Helsinki-NLP/opus-mt-en-{args.tgt_lang}'
+    checkpoint = 'facebook/nllb-200-distilled-1.3B'
+    output_file = os.path.join(args.output_dir, f"question_{args.tgt_lang}.jsonl")
+
+    print(f"Translating MT bench questions from en to {args.tgt_lang}")
+    print(f"Reading en questions from {args.source_file}")
+
+    using_NLLB = False # flag to specify that we use NLLB
+    src_lang = 'en'
+    # check if the opus model exists
+    if opus_model_exists(model_name):
+        print("Opus model found")
+        tokenizer = MarianTokenizer.from_pretrained(model_name)
+        model = MarianMTModel.from_pretrained(model_name)
+    else:
+        """using_NLLB = True
+        print(f"No Opus model found for {args.tgt_lang} Using NLLB")
+        model = AutoModelForSeq2SeqLM.from_pretrained(checkpoint)
+        tokenizer = AutoTokenizer.from_pretrained(checkpoint)
+
+        # map 2 letter lang code to long lang code used by NLLB
+        filepath_isomap = '/scratch/project_462000353/maribarr/translation_scripts/iso2nllb.map'
+        iso2nllb_dict = load_iso2nllb_map(filepath_isomap)
+        
+        src_lang_long = map_lang_code(args.src_lang, iso2nllb_dict)
+        tgt_lang_long = map_lang_code(args.tgt_lang, iso2nllb_dict)"""
+        print(src_lang_long, tgt_lang_long)
+        print("not running NLBB now - passing")
+        exit()
+        
+    #open the English source file
+    df = pd.read_json(args.source_file, lines=True)
+
+    if args.max_samples:
+        df = df.head(args.max_samples)
+
+    #Translate using Opus
+    if not using_NLLB:
+        df.loc[:, 'translated_turns'] = df.turns.progress_map(lambda x: [translate_opus(sent, 
+                                                                                        tokenizer=tokenizer,
+                                                                                        model=model) for sent in x])
+        df.loc[:, 'translated_reference'] = df.reference.progress_map(
+            lambda x: [translate_opus(sent,
+                                      tokenizer=tokenizer,
+                                      model=model) for sent in x] if pd.notna(x) else x)        
+    else: #then use nllb
+        df.loc[:, 'translated_turns'] = df.turns.progress_map(lambda x: [translate_nllb(sent,
+                                                                        tokenizer=tokenizer,
+                                                                        model=model,
+                                                                        src_lang=src_lang_long,
+                                                                        tgt_lang=tgt_lang_long) 
+                                                                        for sent in x ])
+        df.loc[:, 'translated_reference'] = df.reference.progress_map(lambda x: [translate_nllb(sent,
+                                                                        tokenizer=tokenizer,
+                                                                        model=model,
+                                                                        src_lang=src_lang_long,
+                                                                        tgt_lang=tgt_lang_long) 
+                                                                        for sent in x ] if pd.notna(x) else x)        
+             
+    # save to file
+    #drop the english question column
+    df = df.loc[:, [c for c in df.columns if c not in ["turns", 'reference']]]
+    df.rename(columns={'translated_turns': 'turns', 'translated_reference': 'reference'}, inplace=True)
+
+    with open(output_file, "w") as f:
+        f.write(df.to_json(orient='records', lines=True, force_ascii=False))
+
+    print(f'Wrote to file {output_file}')
+    print('Done')
