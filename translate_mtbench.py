@@ -3,13 +3,17 @@ import pandas as pd
 import argparse
 from tqdm import tqdm
 import os
+import numpy as np
+import math
+from comet import load_from_checkpoint
+
 tqdm.pandas() 
 
 """
 This script translates an mt bench question file from English to a target language.
 It assumes that the text to be translated is in the column turn and references and is a flat list. 
 It checks whether an Opus model exist for the English -> target language and if not:
-use NLLB instead. 
+use NLLB instead. It runs comet without a reference to get an extimate of the translation.
 Author: Maria
 """
 
@@ -40,7 +44,7 @@ def translate_nllb(text: str, tokenizer, model, src_lang:str, tgt_lang:str) -> s
                 tokenizer=tokenizer, 
                 src_lang=src_lang, 
                 tgt_lang=tgt_lang, 
-                max_length = 400)
+                max_length = 800)
     output = translator(text)
     translated_text = output[0]['translation_text']
     return translated_text
@@ -56,6 +60,19 @@ def load_iso2nllb_map(filepath):
 
 def map_lang_code(two_letter_code, iso2nllb_dict):
     return iso2nllb_dict.get(two_letter_code, "Unknown code")
+
+def run_comet(df: pd.DataFrame):
+    model = load_from_checkpoint('Unbabel/wmt20-comet-qe-da/checkpoints/model.ckpt')
+
+    #reformat for Comet
+    df_exploded = df.explode(['turns', 'translated_turns'])
+
+    # Create the new DataFrame with the required structure
+    new_df = df_exploded.rename(columns={'turns': 'src', 'translated_turns': 'mt', 'reference': 'ref'})
+    data = new_df[['src', 'mt']].to_dict('records')
+    model_output = model.predict(data, batch_size=4, gpus=0)
+
+    print(f"Comet score: {model_output.system_score}")
 
     
 if __name__ == "__main__":
@@ -83,7 +100,7 @@ if __name__ == "__main__":
         tokenizer = MarianTokenizer.from_pretrained(model_name)
         model = MarianMTModel.from_pretrained(model_name)
     else:
-        """using_NLLB = True
+        using_NLLB = True
         print(f"No Opus model found for {args.tgt_lang} Using NLLB")
         model = AutoModelForSeq2SeqLM.from_pretrained(checkpoint)
         tokenizer = AutoTokenizer.from_pretrained(checkpoint)
@@ -92,11 +109,10 @@ if __name__ == "__main__":
         filepath_isomap = '/scratch/project_462000353/maribarr/translation_scripts/iso2nllb.map'
         iso2nllb_dict = load_iso2nllb_map(filepath_isomap)
         
-        src_lang_long = map_lang_code(args.src_lang, iso2nllb_dict)
-        tgt_lang_long = map_lang_code(args.tgt_lang, iso2nllb_dict)"""
-        print(src_lang_long, tgt_lang_long)
-        print("not running NLBB now - passing")
-        exit()
+        src_lang_long = map_lang_code('en', iso2nllb_dict)
+        tgt_lang_long = map_lang_code(args.tgt_lang, iso2nllb_dict)
+        print("NLLB language codes: ", src_lang_long, tgt_lang_long)
+        #print("not running NLBB now - passing")
         
     #open the English source file
     df = pd.read_json(args.source_file, lines=True)
@@ -106,13 +122,15 @@ if __name__ == "__main__":
 
     #Translate using Opus
     if not using_NLLB:
-        df.loc[:, 'translated_turns'] = df.turns.progress_map(lambda x: [translate_opus(sent, 
+        df.loc[:, 'translated_turns'] = df.turns.progress_map(lambda x: [translate_opus(sent,
                                                                                         tokenizer=tokenizer,
                                                                                         model=model) for sent in x])
+
         df.loc[:, 'translated_reference'] = df.reference.progress_map(
             lambda x: [translate_opus(sent,
                                       tokenizer=tokenizer,
-                                      model=model) for sent in x] if pd.notna(x) else x)        
+                                      model=model) for sent in x] if type(x)==list else x )
+
     else: #then use nllb
         df.loc[:, 'translated_turns'] = df.turns.progress_map(lambda x: [translate_nllb(sent,
                                                                         tokenizer=tokenizer,
@@ -125,12 +143,13 @@ if __name__ == "__main__":
                                                                         model=model,
                                                                         src_lang=src_lang_long,
                                                                         tgt_lang=tgt_lang_long) 
-                                                                        for sent in x ] if pd.notna(x) else x)        
+                                                                        for sent in x ] if type(x)==list else x )      
              
+    run_comet(df)
     # save to file
     #drop the english question column
     df = df.loc[:, [c for c in df.columns if c not in ["turns", 'reference']]]
-    df.rename(columns={'translated_turns': 'turns', 'translated_reference': 'reference'}, inplace=True)
+    df.rename(columns={'translated_turns': 'turns'}, inplace=True)
 
     with open(output_file, "w") as f:
         f.write(df.to_json(orient='records', lines=True, force_ascii=False))
