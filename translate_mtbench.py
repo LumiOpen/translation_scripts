@@ -5,7 +5,7 @@ from tqdm import tqdm
 import os
 import numpy as np
 import math
-from comet import load_from_checkpoint
+from comet import load_from_checkpoint, download_model
 import deepl
 
 tqdm.pandas() 
@@ -71,7 +71,10 @@ def map_lang_code(two_letter_code, iso2nllb_dict):
     return iso2nllb_dict.get(two_letter_code, "Unknown code")
 
 def run_comet(df: pd.DataFrame):
-    model = load_from_checkpoint('Unbabel/wmt20-comet-qe-da/checkpoints/model.ckpt')
+
+    model_path = download_model("Unbabel/wmt22-cometkiwi-da")
+    model = load_from_checkpoint(model_path)
+    #model = load_from_checkpoint('Unbabel/wmt20-comet-qe-da/checkpoints/model.ckpt')
 
     #reformat for Comet
     df_exploded = df.explode(['turns', 'translated_turns'])
