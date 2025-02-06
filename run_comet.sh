@@ -14,12 +14,8 @@ module use /appl/local/csc/modulefiles/
 module load pytorch
 source /scratch/project_462000353/maribarr/FastChat/fastchat/llm_judge/.fastchat_venv/bin/activate
 
-#Download the Comet model and put in in a folder named Unbabel
-#wget https://unbabel-experimental-models.s3.amazonaws.com/comet/wmt20/wmt20-comet-qe-da.tar.gz
-#tar -xf /wmt20-comet-qe-da.tar.gz
-#mkdir Unbabel
-#mv wmt20-comet-qe-da Unbabel/
-#rm wmt20-comet-qe-da.tar.gz
+export HF_DATASETS_CACHE="/scratch/project_462000444/maribarr/.datasets_cache"
+export PYTHONPATH="/scratch/project_462000353/maribarr/alignment-handbook/.align_venv/lib/python3.10/site-packages"
 
 #pip install sacrebleu
 #pip install comet
@@ -30,6 +26,8 @@ source /scratch/project_462000353/maribarr/FastChat/fastchat/llm_judge/.fastchat
 SOURCE_FILE="/scratch/project_462000353/maribarr/FastChat/fastchat/llm_judge/data/mt_bench/question.jsonl"
 OUTPUT_DIR="/scratch/project_462000353/maribarr/FastChat/fastchat/llm_judge/data/mt_bench/"
 LANGUAGES=("fi" "da" "no" "nb" "sv")
+LANGUAGES=("bg" "hr" "cs" "nl" "et" "fr" "de" "el" "hu" "is" "ga" "it" "lv" "lt" "mt" "nn" "pl" "pt" "ro" "sk" "sl" "es" "fi" "da" "no" "nb" "sv")
+LANGUAGES=("sl" "es" "fi" "da" "no" "nb" "sv")
 
 # Iterate over each language and run the translation script
 for TGT_LANG in "${LANGUAGES[@]}"; do

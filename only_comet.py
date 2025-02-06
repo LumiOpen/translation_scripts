@@ -5,7 +5,7 @@ from tqdm import tqdm
 import os
 import numpy as np
 import math
-from comet import load_from_checkpoint
+from comet import load_from_checkpoint, download_model
 
 tqdm.pandas() 
 
@@ -65,7 +65,10 @@ def run_comet(df: pd.DataFrame):
     """This function takes the list in turns and translated turns and explodes them 
     such that each list item gets its own row. Then runs comet on it.
     Using GPUs throws an error"""
-    model = load_from_checkpoint('Unbabel/wmt20-comet-qe-da/checkpoints/model.ckpt')
+
+    model_path = download_model("Unbabel/wmt22-cometkiwi-da")
+    model = load_from_checkpoint(model_path)
+    #model = load_from_checkpoint('Unbabel/wmt20-comet-qe-da/checkpoints/model.ckpt')
 
     #reformat for Comet
     df_exploded = df.explode(['turns', 'translated_turns'])
@@ -73,6 +76,7 @@ def run_comet(df: pd.DataFrame):
     # Create the new DataFrame with the required structure
     new_df = df_exploded.rename(columns={'turns': 'src', 'translated_turns': 'mt', 'reference': 'ref'})
     data = new_df[['src', 'mt']].to_dict('records')
+
     model_output = model.predict(data, batch_size=4, gpus=0)
 
     print(f"Comet score: {model_output.system_score}")
