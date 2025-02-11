@@ -162,6 +162,7 @@ TRG_LANGUAGE = {
 }
 
 # ICL examples per language (samples from FLORES-101 and Tatoeba dev sets)
+FLORES_SENT_INDICES = [532, 136, 51, 587, 356, 119, 152, 381]
 ICL_EXAMPLES = {
     'tatoeba': {
             'eng-fin': {
@@ -279,48 +280,8 @@ ICL_EXAMPLES = {
                 "Greed and selfishness will always be with us and it is the nature of cooperation that when the majority benefit there will always be more to gain in the short term by acting selfishly",
                 "This causes the skater to turn. If the skates tilt to the right, the skater turns right, if the skates tilt to the left, the skater turns left.",
                 "The game is based on the Second Battle of Fallujah, a vicious battle between American and Iraqi forces.",
-                "Virgin have only purchased the \'good bank\' of Northern Rock, not the asset management company.",
-                "England had experienced a long period of peace after the reconquest of the Danelaw."],
-        'fin': ["Se pelaaja voittaa, joka tarvitsee vähiten lyöntejä radan suorittamiseen.",
-                "Levät tuottavat hermomyrkkyä, joka voi lamauttaa sekä ihmisten että kalojen hermot.",
-                "Tämän vuoden huhtikuussa tuomari Glynn määräsi poliisivankilalle tilapäisen kiellon. Sen tarkoituksena oli vapauttaa pidätetyt, joita tuomioistuimen edustajat eivät olleet kuulleet 24 tunnin kuluessa pidättämisestä.",
-                "Ahneutta ja itsekkyyttä tulee olemaan aina. Yhteistyölle on myös luonteenomaista, että kun toimitaan enemmistön etujen puolesta, lyhyellä aikavälillä itsekäs toiminta tuottaa yksilölle eniten hyötyä.",
-                "Sen takia luistelija kääntyy. Jos luistimet kallistuvat oikealle, luistelija kääntyy oikealle, jos luistimet kallistuvat vasemmalle, luistelija kääntyy vasemmalle.",
-                "Peli perustuu Fallujahin toiseen taisteluun. Kyseessä oli väkivaltainen taistelu Yhdysvaltojen ja Irakin joukkojenvälillä.",
-                "Virgin on ostanut vain Northern Rockin \"hyvän pankin\", ei Asset Managementia eli omaisuudenhoitopuolta.",
-                "Englanti oli kokenut pitkän rauhanajan sen jälkeen, kun Danelagen oli valloitettu takaisin."],
-        'swe': ["Vinner gör den spelare som behöver minst antal slag, eller svingar med klubban, för att slutföra banan.",
-                "Algerna producerar ett nervgift som kan förstöra nerverna hos både människor och fiskar.",
-                "I april i år utfärdade domare Judge Glynn ett tillfälligt besöksförbud för anläggningen, för att genomföra frigivningen av de som hållits i mer än 24 timmar efter sin intagning, och som inte blivit hörda av en domstolskommissionär.",
-                "Girighet och själviskhet kommer alltid att finnas hos oss, och det är samarbetets natur att det när majoriteten gynnas alltid finns mer att vinna på kort sikt genom att agera själviskt",
-                "Detta gör att skridskoåkaren svänger. Om skridskorna lutar till höger svänger åkaren åt höger, om skridskorna lutar till vänster svänger åkaren åt vänster.",
-                "Spelet är baserat på det andra slaget om Fallujah, en grym strid mellan amerikanska och irakiska styrkor.",
-                "Virgin har bara köpt den \"\"goda banken\"\" av Northern Rock, inte kapitalförvaltningsföretaget.",
-                "England upplevde en lång period av fred efter återerövringen av Danelagen."],
-        'dan': ["Den spiller, der bruger færrest slag eller sving med køllen for at fuldføre banen, vinder.",
-                "Algerne producerer et neurotoksin, som kan lamme nerverne i både mennesker og fisk.",
-                "I april i år blev der udstedt et midlertidigt polititilhold af dommer Glynn mod faciliteten, for at håndhæve løsladelsen af dem der blev tilbageholdt i mere end 24 timer, efter de blev anholdt, og som ikke blev afhørt af en kommissær.",
-                "Grådighed og egoisme vil altid findes, og det er en del af den måde samarbejde fungerer på, at når flertallet har overtaget, vil det altid være muligt at vinde mere på kort sigt ved at handle egoistisk.",
-                "Dette får skøjteløberen til at dreje. Hvis skøjterne hælder til højre, drejer skøjteløberen til højre, og hvis skøjterne hælder til venstre, drejer skøjteløberen til venstre.",
-                "Spillet er baseret på Det Andet Slag ved Fallujah, en grusom kamp mellem de amerikanske og irakiske styrker.",
-                "Virgin har kun købt den \"gode bank\" i Northern Rocks, og ikke kapitalforvaltningsselskabet.",
-                "England havde gennemlevet en lang periode med fred ovenpå generobringen af Danelagen."],
-        'isl': ["Sá leikmaður sem slær sjaldnast, eða sveiflar kylfunni sjaldnast, til að ljúka hringnum vinnur.",
-                "Þörungarnir mynda taugaeitur sem getur gert taugar bæði hjá mönnum og fiskum óvígar.",
-                "Í apríl í ár setti Glynn dómari tímabundið nálgunarbann á stofnunina. Tilgangurinn var að frelsa alla fangana sem höfðu setið í haldi í meira en 24 klukkustundir eftir handtöku og höfðu ekki fengið áheyrn hjá héraðsdómara.",
-                "Græðgi og eigingirni munu alltaf fylgja okkur og það er eðlislægur hluti allrar samvinnu að þegar meirihlutinn græðir verður alltaf hægt að græða meira til skamms tíma með því að sýna eigingirni",
-                "Þetta veldur því að skautarinn þarf að snúa sér. Ef skautarnir halla til hægri, þá beygir skautarinn til hægri, ef skautarnir halla til vinstri, þá beygir skautarinn til vinstri.",
-                "Leikurinn er byggist á síðari orrustunni um Fallujah, sem var hræðilegur bardagi á milli bandarískra og íraskra hersveita.",
-                "Virgin fyrirtækið keypti aðeins ,\'góða\' Northern Rock bankann, ekki eignastýringafyrirtækið.",
-                "England upplifði langan friðartíma eftir endurupptöku Danalaga."],
-        'nor': ["Spilleren som fullfører banen med færrest slag, eller svinger golfkøllen færrest ganger, vinner.",
-                "Algene produserer en nervegift som kan skade nerver hos både mennesker og fisk.",
-                "I april i år ble det utstedt et midlertidig påbud av dommer Glynn for å forhindre løslatelse av de som var anholdt mer enn 24 timer, som ikke hatt fått en høring av en rettskommisær.",
-                "Grådighet og egoisme vil alltid være en del av oss, og det er samarbeidets natur at med en gang flertallet har en fordel, vil man alltid få mer igjen på kort sikt dersom man handler egoistisk.",
-                "Dette gjør at skøyteløperen svinger. Hvis skøytene vippes mot høyre, så svinger de til høyre, hvis skøytene vippes mot venstre, så svinger de til venstre.",
-                "Spillet tar utgangspunkt i det andre slaget om Fallujah, en brutal kamp mellom amerikanske og irakiske styrker.",
-                "Virgin har bare kjøpt banken Northern Rock, ikke ressursforvaltningsselskapet.",
-                "Etter gjenerobringen av Danelaw hadde England hatt en lang tid med fred."]
+                "Virgin have only purchased the ‘good bank’ of Northern Rock, not the asset management company.",
+                "England had experienced a long period of peace after the reconquest of the Danelaw."]
     }
 }
 
@@ -345,7 +306,8 @@ def argparser():
     ap.add_argument('--lang_pair', default="eng-fin", type=str)
     ap.add_argument('--test_data', default="tatoeba", type=str)
     ap.add_argument('--format_type', default="equals", type=str, help="chatml, user_assistant, equals")
-    ap.add_argument('--num_examples', type=int, default=8, help="number of ICL examples to include in prompt")
+    ap.add_argument('--num_examples', type=int, default=8, help="examples in few-shot prompt")
+    ap.add_argument('--flores_path', type=str, default="/scratch/project_462000444/finetuning_data/FLORES-200", help="path to FLORES dev sents for few-shot prompt")
     ap.add_argument('--skip_lines', type=int, default=None)
     return ap
 
@@ -380,7 +342,7 @@ def generate(prompt, model, tokenizer, args, end_token, skip_special_tokens=Fals
     if end_token:
         if "emma-500" in args.model.lower():
             eos_token_id = [eos_token_id, tokenizer.encode(end_token)[0], 29961]
-        elif "salamandra" in args.model.lower() or "mistral" in args.model.lower() or "llama" in args.model.lower():
+        elif "salamandra" in args.model.lower() or "mistral" in args.model.lower() or "llama" in args.model.lower() or "eurollm" in args.model.lower():
             eos_token_id = [eos_token_id]
             end_token_ids = tokenizer.encode(end_token)
             eos_token_id.extend(end_token_ids)
@@ -416,7 +378,8 @@ def generate(prompt, model, tokenizer, args, end_token, skip_special_tokens=Fals
         result = result.split("<s> Bot: ")[-1].strip()
         if result.endswith(end_token):
             result = result[:-len(end_token)]
-    elif "llama" in args.model.lower() or "salamandra" in args.model.lower():
+    elif "llama" in args.model.lower() or "salamandra" in args.model.lower() or "mistral" in args.model.lower() or "eurollm" in args.model.lower():
+        print(f"\nRAW RESULT:\n{result}")
         result = result.strip().split("\n")[25].strip()
     else:
         if result.endswith(end_token):
@@ -523,12 +486,16 @@ def translate_sentences(model, tokenizer, src_sentences, trg_sentences, args):
                     trg_sents = ICL_EXAMPLES[args.test_data]['fin-swe']['src']
             else:
                 # FLORES examples
-                src_sents = ICL_EXAMPLES[args.test_data][src_lang]
-                trg_sents = ICL_EXAMPLES[args.test_data][trg_lang]
+                flores_src_sentences = open(os.path.join(args.flores_path, src_lang+"-dev.txt")).readlines()
+                flores_trg_sentences = open(os.path.join(args.flores_path, trg_lang+"-dev.txt")).readlines()
+                src_sents = [flores_src_sentences[sent_index].strip() for sent_index in FLORES_SENT_INDICES]
+                trg_sents = [flores_trg_sentences[sent_index].strip() for sent_index in FLORES_SENT_INDICES]
+                # src_sents = ICL_EXAMPLES[args.test_data][src_lang]
+                # trg_sents = ICL_EXAMPLES[args.test_data][trg_lang]
             src_sents = src_sents[:args.num_examples]
             trg_sents = trg_sents[:args.num_examples]
-            # Viking / Poro
-            if "viking" in args.model.lower() or "33B" in args.model.lower():
+            # Europa / Viking / Poro
+            if "europa" in args.model.lower() or "viking" in args.model.lower() or "33B" in args.model.lower():
                 if args.format_type == "chatml":
                     prompt = format_prompt_chatml(src_sent, src_sents, trg_sents, src_lang, trg_lang)
                     result = generate(prompt, model, tokenizer, args, end_token="<|im_end|>", skip_special_tokens=False)
@@ -548,17 +515,17 @@ def translate_sentences(model, tokenizer, src_sentences, trg_sentences, args):
                     else:
                         prompt = format_prompt_src_equals_trg(src_sent, src_sents, trg_sents, template=LLAMA3_SRC_EQUALS_TRG_TEMPLATE, end_token = LLAMA_3_END)
                         result = generate(prompt, model, tokenizer, args, end_token=LLAMA_3_END, skip_special_tokens=True)
-                elif "eurollm" in args.model.lower():
-                    # print("EuroLLM model -- use EuroLLM prompt format")
-                    prompt = format_prompt_eurollm(src_sent, src_sents, trg_sents, src_lang, trg_lang)
-                    result = generate(prompt, model, tokenizer, args, end_token="<s>", skip_special_tokens=True)
+                # elif "eurollm" in args.model.lower():
+                #     # print("EuroLLM model -- use EuroLLM prompt format")
+                #     prompt = format_prompt_eurollm(src_sent, src_sents, trg_sents, src_lang, trg_lang)
+                #     result = generate(prompt, model, tokenizer, args, end_token="<s>", skip_special_tokens=True)
                 elif "emma-500" in args.model.lower():
                     prompt = format_prompt_emma500(src_sent, src_sents, trg_sents, src_lang, trg_lang)
                     result = generate(prompt, model, tokenizer, args, end_token="[", skip_special_tokens=True)
-                elif "cpt" in args.model.lower() or "mistral" in args.model.lower():
+                elif "cpt" in args.model.lower():
                     prompt = format_prompt_cpt(src_sent, src_sents, trg_sents, src_lang, trg_lang)
                     result = generate(prompt, model, tokenizer, args, end_token="\n", skip_special_tokens=True)
-                elif "salamandra" in args.model.lower():
+                elif "salamandra" in args.model.lower() or "llama" in args.model.lower() or "mistral" in args.model.lower() or "eurollm" in args.model.lower():
                     prompt = format_prompt_cpt(src_sent, src_sents, trg_sents, src_lang, trg_lang)
                     result = generate(prompt, model, tokenizer, args, end_token="\n\n", skip_special_tokens=True)                  
             # print(i+1, "src:", src_sent)
