@@ -417,7 +417,9 @@ def translate_sentences(model, tokenizer, src_sentences, trg_sentences, args):
                                      eos_token_id=tokenizer.eos_token_id,
                                      pad_token_id=tokenizer.pad_token_id,
                                      max_new_tokens=args.max_new_tokens,
-                                     forced_bos_token_id=tokenizer.lang_code_to_id[trg_lang + "_Latn"])
+                                     forced_bos_token_id=tokenizer.convert_tokens_to_ids(trg_lang + "_Latn")
+                                     # forced_bos_token_id=tokenizer.lang_code_to_id[trg_lang + "_Latn"]
+                                     )
             result = tokenizer.decode(output[0], skip_special_tokens=True)
             print(i+1, "src:", src_sent)
             print("pred:", result)
