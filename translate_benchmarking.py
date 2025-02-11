@@ -412,12 +412,16 @@ def translate_sentences(model, tokenizer, src_sentences, trg_sentences, args):
         if "nllb" in args.model:
             if trg_lang == "nor":
                 trg_lang = "nob"
+            if trg_lang != 'bul':
+                lang_code_and_script = trg_lang + "_Latn"
+            else:
+                lang_code_and_script = trg_lang + "_Cyrl"
             input_ids = tokenizer.encode(src_sent, return_tensors="pt", padding = True).to('cuda')
             output = model.generate(input_ids=input_ids,
                                      eos_token_id=tokenizer.eos_token_id,
                                      pad_token_id=tokenizer.pad_token_id,
                                      max_new_tokens=args.max_new_tokens,
-                                     forced_bos_token_id=tokenizer.convert_tokens_to_ids(trg_lang + "_Latn")
+                                     forced_bos_token_id=tokenizer.convert_tokens_to_ids(lang_code_and_script)
                                      # forced_bos_token_id=tokenizer.lang_code_to_id[trg_lang + "_Latn"]
                                      )
             result = tokenizer.decode(output[0], skip_special_tokens=True)
@@ -771,7 +775,10 @@ def main(argv):
             src_lang = args.lang_pair.split("-")[0]
             if src_lang == "nor":
                 src_lang = "nob"
-            tokenizer = AutoTokenizer.from_pretrained(args.tokenizer, token=True, src_lang=src_lang + "_Latn")
+            if src_lang == 'bul':
+                tokenizer = AutoTokenizer.from_pretrained(args.tokenizer, token=True, src_lang=src_lang + "_Cyrl")
+            else:    
+                tokenizer = AutoTokenizer.from_pretrained(args.tokenizer, token=True, src_lang=src_lang + "_Latn")
         else:
             tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
     model = load_model(args)
