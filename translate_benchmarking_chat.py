@@ -13,7 +13,7 @@ from logging import warning
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 from utils import timed
 from sacrebleu.metrics import BLEU
-from comet import load_from_checkpoint
+# from comet import load_from_checkpoint
 import random
 
 DTYPE_MAP = {
@@ -51,12 +51,32 @@ TRANSLATE_TRG_LANGUAGE = {
         'swe': 'ruotsiksi',
     },
     'eng': {
+        'bul': 'Bulgarian',
+        'hrv': 'Croatian',
+        'ces': 'Czech',
         'dan': 'Danish',
+        'nld': 'Dutch',
         'eng': 'English',
+        'est': 'Estonian',
         'fin': 'Finnish',
+        'fra': 'French',
+        'deu': 'German',
+        'ell': 'Greek',
+        'hun': 'Hungarian',
+        'gle': 'Irish',
         'isl': 'Icelandic',
+        'ita': 'Italian',
+        'lav': 'Latvian',
+        'lit': 'Lithuanian',
+        'mlt': 'Maltese',
         'nor': 'Norwegian',
-        'swe': 'Swedish',
+        'pol': 'Polish',
+        'por': 'Portuguese',
+        'ron': 'Romanian',
+        'slk': 'Slovak',
+        'slv': 'Slovenian',
+        'spa': 'Spanish',
+        'swe': 'Swedish'
     },
     'isl': {
         'dan': 'dönsku',
@@ -249,7 +269,7 @@ PROMPT_EXAMPLES = {
 
 def argparser():
     ap = ArgumentParser()
-    ap.add_argument('--max_samples', default=10, type=int)
+    ap.add_argument('--max_samples', default=None, type=int)
     ap.add_argument('--temperature', default=1.0, type=float)
     ap.add_argument('--memory-usage', action='store_true')
     ap.add_argument('--show-devices', action='store_true')    
@@ -343,6 +363,7 @@ def create_translation_prompts(src_sents, src_lang, trg_lang, args):
 
 @timed
 def generate(prompts, tokenizer, model, args):
+    print(f"Generating translations for {len(prompts)} sentences")
     eos_token_id = tokenizer.eos_token_id
     pipe = pipeline(
             'text-generation',
@@ -350,12 +371,6 @@ def generate(prompts, tokenizer, model, args):
             tokenizer=tokenizer,
             max_new_tokens=1024,
             eos_token_id=[eos_token_id],
-            # min_new_tokens=10,
-            # temperature=args.temperature,
-            # do_sample=True,
-            # repetition_penalty=1.1,
-            # top_k = 10
-            # skip_special_tokens=True
         )
     responses = []
     for i, prompt in enumerate(prompts):
@@ -369,11 +384,11 @@ def generate(prompts, tokenizer, model, args):
             prompt = prompt.rstrip('\n')
             messages = [{"role": "user", "content": prompt}]
         formatted_prompt = tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
+        print("-"*10, f"CHAT PROMPT {i+1} of {len(prompts)}", "-"*10)
+        print(formatted_prompt)
+        print("--"*20)
         generated = pipe(formatted_prompt)
         for g in generated:
-            print("-"*10, f"CHAT PROMPT {i+1} of {len(prompts)}", "-"*10)
-            print(formatted_prompt)
-            print("--"*20)
             text = g['generated_text']
             # print(f"RAW RESPONSE: {text}")
             # print("--"*20)
@@ -398,9 +413,9 @@ def load_model(args):
         torch_dtype=torch.bfloat16,
         # trust_remote_code=args.trust_remote_code,
         cache_dir=args.transformers_cache,
-        #attn_implementation='flash_attention_2',
+        attn_implementation='flash_attention_2',
     )
-    print("Done loading!")
+    # print("Done loading!")
     return model
 
 

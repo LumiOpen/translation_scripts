@@ -104,7 +104,7 @@ EMMA_500_TEMPLATE_EXAMPLES = "[{src_lang}]: {src}\n[{trg_lang}]: {trg}"
 EMMA_500_TEMPLATE = "Translate the following sentence from {src_lang} to {trg_lang}\n[{src_lang}]: {src}\n[{trg_lang}]: {trg}"
 
 # CPT templates
-CPT_ENG_TEMPLATE = "Translate into {trg_lang}: {src}\n{trg}"
+CPT_ENG_TEMPLATE = "## Translate into {trg_lang}: {src}\n{trg}"
 CPT_FIN_TEMPLATE = "Käännä {trg_lang}: {src}\n{trg}"
 
 # General template
@@ -128,12 +128,32 @@ TRG_LANGUAGE = {
         'swe': 'ruotsiksi',
     },
     'eng': {
+        'bul': 'Bulgarian',
+        'hrv': 'Croatian',
+        'ces': 'Czech',
         'dan': 'Danish',
+        'nld': 'Dutch',
         'eng': 'English',
+        'est': 'Estonian',
         'fin': 'Finnish',
+        'fra': 'French',
+        'deu': 'German',
+        'ell': 'Greek',
+        'hun': 'Hungarian',
+        'gle': 'Irish',
         'isl': 'Icelandic',
+        'ita': 'Italian',
+        'lav': 'Latvian',
+        'lit': 'Lithuanian',
+        'mlt': 'Maltese',
         'nor': 'Norwegian',
-        'swe': 'Swedish',
+        'pol': 'Polish',
+        'por': 'Portuguese',
+        'ron': 'Romanian',
+        'slk': 'Slovak',
+        'slv': 'Slovenian',
+        'spa': 'Spanish',
+        'swe': 'Swedish'
     },
     'isl': {
         'dan': 'dönsku',
@@ -342,14 +362,18 @@ def generate(prompt, model, tokenizer, args, end_token, skip_special_tokens=Fals
     if end_token:
         if "emma-500" in args.model.lower():
             eos_token_id = [eos_token_id, tokenizer.encode(end_token)[0], 29961]
-        elif "salamandra" in args.model.lower() or "mistral" in args.model.lower() or "llama" in args.model.lower() or "eurollm" in args.model.lower():
+        elif "llama" in args.model.lower():
+            eos_token_id = [tokenizer.convert_tokens_to_ids("##"), tokenizer.eos_token_id, tokenizer.convert_tokens_to_ids("<|eot_id|>")]
+            # print("llama eos_token_id:", eos_token_id)
+        elif "salamandra" in args.model.lower() or "mistral" in args.model.lower() or "eurollm" in args.model.lower():
             eos_token_id = [eos_token_id]
-            end_token_ids = tokenizer.encode(end_token)
+            end_token_ids = [tokenizer.encode(end_token), tokenizer.convert_tokens_to_ids("##")]
             eos_token_id.extend(end_token_ids)
         else:
             end_token_ids = tokenizer.encode(end_token)[0]
             eos_token_id = [eos_token_id]
             eos_token_id.append(end_token_ids)
+        print("eos_token_id:", eos_token_id)
     
     print("--"*30)
     print(f"PROMPT:\n{prompt}")
@@ -407,154 +431,155 @@ def translate_sentences(model, tokenizer, src_sentences, trg_sentences, args):
     predictions = []
     print(f"trg_lang: {trg_lang}")
     print(f"src_lang: {src_lang}")
-    for i, src_sent in enumerate(src_sentences):
-        result = ""
-        if "nllb" in args.model:
-            if trg_lang == "nor":
-                trg_lang = "nob"
-            if trg_lang != 'bul':
-                lang_code_and_script = trg_lang + "_Latn"
-            else:
-                lang_code_and_script = trg_lang + "_Cyrl"
-            input_ids = tokenizer.encode(src_sent, return_tensors="pt", padding = True).to('cuda')
-            output = model.generate(input_ids=input_ids,
-                                     eos_token_id=tokenizer.eos_token_id,
-                                     pad_token_id=tokenizer.pad_token_id,
-                                     max_new_tokens=args.max_new_tokens,
-                                     forced_bos_token_id=tokenizer.convert_tokens_to_ids(lang_code_and_script)
-                                     # forced_bos_token_id=tokenizer.lang_code_to_id[trg_lang + "_Latn"]
-                                     )
-            result = tokenizer.decode(output[0], skip_special_tokens=True)
-            print(i+1, "src:", src_sent)
-            print("pred:", result)
-            print("-"*50)
-        elif "m2m" in args.model:
-            tokenizer.src_lang = M2M_LANG_MAP[src_lang]
-            input_ids = tokenizer.encode(src_sent, return_tensors="pt").to('cuda')
-            output = model.generate(input_ids=input_ids,
-                                     eos_token_id=tokenizer.eos_token_id,
-                                     pad_token_id=tokenizer.pad_token_id,
-                                     max_new_tokens=args.max_new_tokens,
-                                     forced_bos_token_id=tokenizer.get_lang_id(M2M_LANG_MAP[trg_lang]))
-            result = tokenizer.decode(output[0], skip_special_tokens=True)
-            print(i+1, "src:", src_sent)
-            print("\npred:", result)
-            print("-"*50)           
-        elif "opus" in args.model:
-            input_ids = tokenizer.encode(src_sent, return_tensors="pt").to('cuda')
-            output = model.generate(input_ids=input_ids,
-                                     eos_token_id=tokenizer.eos_token_id,
-                                     pad_token_id=tokenizer.pad_token_id,
-                                     max_new_tokens=args.max_new_tokens)
-            result = tokenizer.decode(output[0], skip_special_tokens=True)
-            print(i+1, "src:", src_sent)
-            print("\npred:", result)
-            print("-"*50) 
-        else:
-        # LLMs
-            # Tatoeba examples
-            if args.test_data == "tatoeba":
-                if args.lang_pair == "eng-fin":
-                    src_sents = ICL_EXAMPLES[args.test_data]['eng-fin']['src']
-                    trg_sents = ICL_EXAMPLES[args.test_data]['eng-fin']['trg']
-                elif args.lang_pair == "fin-eng":
-                    src_sents = ICL_EXAMPLES[args.test_data]['eng-fin']['trg']
-                    trg_sents = ICL_EXAMPLES[args.test_data]['eng-fin']['src']
-                elif args.lang_pair == "eng-swe":
-                    src_sents = ICL_EXAMPLES[args.test_data]['eng-swe']['src']
-                    trg_sents = ICL_EXAMPLES[args.test_data]['eng-swe']['trg']
-                elif args.lang_pair == "swe-eng":
-                    src_sents = ICL_EXAMPLES[args.test_data]['eng-swe']['trg']
-                    trg_sents = ICL_EXAMPLES[args.test_data]['eng-swe']['src']
-                elif args.lang_pair == "eng-dan":
-                    src_sents = ICL_EXAMPLES[args.test_data]['eng-dan']['src']
-                    trg_sents = ICL_EXAMPLES[args.test_data]['eng-dan']['trg']
-                elif args.lang_pair == "dan-eng":
-                    src_sents = ICL_EXAMPLES[args.test_data]['eng-dan']['trg']
-                    trg_sents = ICL_EXAMPLES[args.test_data]['eng-dan']['src']
-                elif args.lang_pair == "eng-isl":
-                    src_sents = ICL_EXAMPLES[args.test_data]['eng-isl']['src']
-                    trg_sents = ICL_EXAMPLES[args.test_data]['eng-isl']['trg']
-                elif args.lang_pair == "isl-eng":
-                    src_sents = ICL_EXAMPLES[args.test_data]['eng-isl']['trg']
-                    trg_sents = ICL_EXAMPLES[args.test_data]['eng-isl']['src']
-                elif args.lang_pair == "eng-nor":
-                    src_sents = ICL_EXAMPLES[args.test_data]['eng-nor']['src']
-                    trg_sents = ICL_EXAMPLES[args.test_data]['eng-nor']['trg']
-                elif args.lang_pair == "nor-eng":
-                    src_sents = ICL_EXAMPLES[args.test_data]['eng-nor']['trg']
-                    trg_sents = ICL_EXAMPLES[args.test_data]['eng-nor']['src']
-                elif args.lang_pair == "fin-swe":
-                    src_sents = ICL_EXAMPLES[args.test_data]['fin-swe']['src']
-                    trg_sents = ICL_EXAMPLES[args.test_data]['fin-swe']['trg']
-                elif args.lang_pair == "swe-fin":
-                    src_sents = ICL_EXAMPLES[args.test_data]['fin-swe']['trg']
-                    trg_sents = ICL_EXAMPLES[args.test_data]['fin-swe']['src']
-            else:
-                # FLORES examples
-                flores_src_sentences = open(os.path.join(args.flores_path, src_lang+"-dev.txt")).readlines()
-                flores_trg_sentences = open(os.path.join(args.flores_path, trg_lang+"-dev.txt")).readlines()
-                src_sents = [flores_src_sentences[sent_index].strip() for sent_index in FLORES_SENT_INDICES]
-                trg_sents = [flores_trg_sentences[sent_index].strip() for sent_index in FLORES_SENT_INDICES]
-                # src_sents = ICL_EXAMPLES[args.test_data][src_lang]
-                # trg_sents = ICL_EXAMPLES[args.test_data][trg_lang]
-            src_sents = src_sents[:args.num_examples]
-            trg_sents = trg_sents[:args.num_examples]
-            # Europa / Viking / Poro
-            if "europa" in args.model.lower() or "viking" in args.model.lower() or "33B" in args.model.lower():
-                if args.format_type == "chatml":
-                    prompt = format_prompt_chatml(src_sent, src_sents, trg_sents, src_lang, trg_lang)
-                    result = generate(prompt, model, tokenizer, args, end_token="<|im_end|>", skip_special_tokens=False)
-                elif args.format_type == "user_assistant":
-                    prompt = format_prompt_user_assistant(src_sent, src_sents, trg_sents)
-                    result = generate(prompt, model, tokenizer, args, end_token="END", skip_special_tokens=True)
+    with open(args.output_file, "w", encoding="utf-8") as f:
+        for i, src_sent in enumerate(src_sentences):
+            result = ""
+            if "nllb" in args.model:
+                if trg_lang == "nor":
+                    trg_lang = "nob"
+                if trg_lang != 'bul':
+                    lang_code_and_script = trg_lang + "_Latn"
                 else:
-                    prompt = format_prompt_src_equals_trg(src_sent, src_sents, trg_sents, template=SRC_EQUALS_TRG_TEMPLATE, end_token="END")
-                    result = generate(prompt, model, tokenizer, args, end_token="END", skip_special_tokens=False)
-
+                    lang_code_and_script = trg_lang + "_Cyrl"
+                input_ids = tokenizer.encode(src_sent, return_tensors="pt", padding = True).to('cuda')
+                output = model.generate(input_ids=input_ids,
+                                        eos_token_id=tokenizer.eos_token_id,
+                                        pad_token_id=tokenizer.pad_token_id,
+                                        max_new_tokens=args.max_new_tokens,
+                                        forced_bos_token_id=tokenizer.convert_tokens_to_ids(lang_code_and_script)
+                                        # forced_bos_token_id=tokenizer.lang_code_to_id[trg_lang + "_Latn"]
+                                        )
+                result = tokenizer.decode(output[0], skip_special_tokens=True)
+                print(i+1, "src:", src_sent)
+                print("pred:", result)
+                print("-"*50)
+            elif "m2m" in args.model:
+                tokenizer.src_lang = M2M_LANG_MAP[src_lang]
+                input_ids = tokenizer.encode(src_sent, return_tensors="pt").to('cuda')
+                output = model.generate(input_ids=input_ids,
+                                        eos_token_id=tokenizer.eos_token_id,
+                                        pad_token_id=tokenizer.pad_token_id,
+                                        max_new_tokens=args.max_new_tokens,
+                                        forced_bos_token_id=tokenizer.get_lang_id(M2M_LANG_MAP[trg_lang]))
+                result = tokenizer.decode(output[0], skip_special_tokens=True)
+                print(i+1, "src:", src_sent)
+                print("\npred:", result)
+                print("-"*50)           
+            elif "opus" in args.model:
+                input_ids = tokenizer.encode(src_sent, return_tensors="pt").to('cuda')
+                output = model.generate(input_ids=input_ids,
+                                        eos_token_id=tokenizer.eos_token_id,
+                                        pad_token_id=tokenizer.pad_token_id,
+                                        max_new_tokens=args.max_new_tokens)
+                result = tokenizer.decode(output[0], skip_special_tokens=True)
+                print(i+1, "src:", src_sent)
+                print("\npred:", result)
+                print("-"*50) 
             else:
-                # AI-Sweden models
-                if "AI-Sweden" in args.model.lower():
-                    if "gpt-sw3-6.7b-v2-translator" in args.model:
-                        prompt = format_prompt_gpt_swe_translator(src_sent, src_lang, trg_lang)
-                        result = generate(prompt, model, tokenizer, args, end_token="<s>", skip_special_tokens=False)
+            # LLMs
+                # Tatoeba examples
+                if args.test_data == "tatoeba":
+                    if args.lang_pair == "eng-fin":
+                        src_sents = ICL_EXAMPLES[args.test_data]['eng-fin']['src']
+                        trg_sents = ICL_EXAMPLES[args.test_data]['eng-fin']['trg']
+                    elif args.lang_pair == "fin-eng":
+                        src_sents = ICL_EXAMPLES[args.test_data]['eng-fin']['trg']
+                        trg_sents = ICL_EXAMPLES[args.test_data]['eng-fin']['src']
+                    elif args.lang_pair == "eng-swe":
+                        src_sents = ICL_EXAMPLES[args.test_data]['eng-swe']['src']
+                        trg_sents = ICL_EXAMPLES[args.test_data]['eng-swe']['trg']
+                    elif args.lang_pair == "swe-eng":
+                        src_sents = ICL_EXAMPLES[args.test_data]['eng-swe']['trg']
+                        trg_sents = ICL_EXAMPLES[args.test_data]['eng-swe']['src']
+                    elif args.lang_pair == "eng-dan":
+                        src_sents = ICL_EXAMPLES[args.test_data]['eng-dan']['src']
+                        trg_sents = ICL_EXAMPLES[args.test_data]['eng-dan']['trg']
+                    elif args.lang_pair == "dan-eng":
+                        src_sents = ICL_EXAMPLES[args.test_data]['eng-dan']['trg']
+                        trg_sents = ICL_EXAMPLES[args.test_data]['eng-dan']['src']
+                    elif args.lang_pair == "eng-isl":
+                        src_sents = ICL_EXAMPLES[args.test_data]['eng-isl']['src']
+                        trg_sents = ICL_EXAMPLES[args.test_data]['eng-isl']['trg']
+                    elif args.lang_pair == "isl-eng":
+                        src_sents = ICL_EXAMPLES[args.test_data]['eng-isl']['trg']
+                        trg_sents = ICL_EXAMPLES[args.test_data]['eng-isl']['src']
+                    elif args.lang_pair == "eng-nor":
+                        src_sents = ICL_EXAMPLES[args.test_data]['eng-nor']['src']
+                        trg_sents = ICL_EXAMPLES[args.test_data]['eng-nor']['trg']
+                    elif args.lang_pair == "nor-eng":
+                        src_sents = ICL_EXAMPLES[args.test_data]['eng-nor']['trg']
+                        trg_sents = ICL_EXAMPLES[args.test_data]['eng-nor']['src']
+                    elif args.lang_pair == "fin-swe":
+                        src_sents = ICL_EXAMPLES[args.test_data]['fin-swe']['src']
+                        trg_sents = ICL_EXAMPLES[args.test_data]['fin-swe']['trg']
+                    elif args.lang_pair == "swe-fin":
+                        src_sents = ICL_EXAMPLES[args.test_data]['fin-swe']['trg']
+                        trg_sents = ICL_EXAMPLES[args.test_data]['fin-swe']['src']
+                else:
+                    # FLORES examples
+                    flores_src_sentences = open(os.path.join(args.flores_path, src_lang+"-dev.txt")).readlines()
+                    flores_trg_sentences = open(os.path.join(args.flores_path, trg_lang+"-dev.txt")).readlines()
+                    src_sents = [flores_src_sentences[sent_index].strip() for sent_index in FLORES_SENT_INDICES]
+                    trg_sents = [flores_trg_sentences[sent_index].strip() for sent_index in FLORES_SENT_INDICES]
+                    # src_sents = ICL_EXAMPLES[args.test_data][src_lang]
+                    # trg_sents = ICL_EXAMPLES[args.test_data][trg_lang]
+                src_sents = src_sents[:args.num_examples]
+                trg_sents = trg_sents[:args.num_examples]
+                # Europa / Viking / Poro
+                if "europa" in args.model.lower() or "viking" in args.model.lower() or "33B" in args.model.lower():
+                    if args.format_type == "chatml":
+                        prompt = format_prompt_chatml(src_sent, src_sents, trg_sents, src_lang, trg_lang)
+                        result = generate(prompt, model, tokenizer, args, end_token="<|im_end|>", skip_special_tokens=False)
+                    elif args.format_type == "user_assistant":
+                        prompt = format_prompt_user_assistant(src_sent, src_sents, trg_sents)
+                        result = generate(prompt, model, tokenizer, args, end_token="END", skip_special_tokens=True)
                     else:
-                        prompt = format_prompt_src_equals_trg(src_sent, src_sents, trg_sents, template=LLAMA3_SRC_EQUALS_TRG_TEMPLATE, end_token = LLAMA_3_END)
-                        result = generate(prompt, model, tokenizer, args, end_token=LLAMA_3_END, skip_special_tokens=True)
-                # elif "eurollm" in args.model.lower():
-                #     # print("EuroLLM model -- use EuroLLM prompt format")
-                #     prompt = format_prompt_eurollm(src_sent, src_sents, trg_sents, src_lang, trg_lang)
-                #     result = generate(prompt, model, tokenizer, args, end_token="<s>", skip_special_tokens=True)
-                elif "emma-500" in args.model.lower():
-                    prompt = format_prompt_emma500(src_sent, src_sents, trg_sents, src_lang, trg_lang)
-                    result = generate(prompt, model, tokenizer, args, end_token="[", skip_special_tokens=True)
-                elif "cpt" in args.model.lower():
-                    prompt = format_prompt_cpt(src_sent, src_sents, trg_sents, src_lang, trg_lang)
-                    result = generate(prompt, model, tokenizer, args, end_token="\n", skip_special_tokens=True)
-                elif "salamandra" in args.model.lower() or "llama" in args.model.lower() or "mistral" in args.model.lower() or "eurollm" in args.model.lower():
-                    prompt = format_prompt_cpt(src_sent, src_sents, trg_sents, src_lang, trg_lang)
-                    result = generate(prompt, model, tokenizer, args, end_token="\n\n", skip_special_tokens=True)                  
-            # print(i+1, "src:", src_sent)
-            # print("\n pred:", result)
-            # print("\n  trg:", trg_sentences[i])
-            print("-"*50)
-        with open(args.output_file, "a", encoding="utf-8") as f:
+                        prompt = format_prompt_src_equals_trg(src_sent, src_sents, trg_sents, template=SRC_EQUALS_TRG_TEMPLATE, end_token="END")
+                        result = generate(prompt, model, tokenizer, args, end_token="END", skip_special_tokens=False)
+
+                else:
+                    # AI-Sweden models
+                    if "AI-Sweden" in args.model.lower():
+                        if "gpt-sw3-6.7b-v2-translator" in args.model:
+                            prompt = format_prompt_gpt_swe_translator(src_sent, src_lang, trg_lang)
+                            result = generate(prompt, model, tokenizer, args, end_token="<s>", skip_special_tokens=False)
+                        else:
+                            prompt = format_prompt_src_equals_trg(src_sent, src_sents, trg_sents, template=LLAMA3_SRC_EQUALS_TRG_TEMPLATE, end_token = LLAMA_3_END)
+                            result = generate(prompt, model, tokenizer, args, end_token=LLAMA_3_END, skip_special_tokens=True)
+                    # elif "eurollm" in args.model.lower():
+                    #     # print("EuroLLM model -- use EuroLLM prompt format")
+                    #     prompt = format_prompt_eurollm(src_sent, src_sents, trg_sents, src_lang, trg_lang)
+                    #     result = generate(prompt, model, tokenizer, args, end_token="<s>", skip_special_tokens=True)
+                    elif "emma-500" in args.model.lower():
+                        prompt = format_prompt_emma500(src_sent, src_sents, trg_sents, src_lang, trg_lang)
+                        result = generate(prompt, model, tokenizer, args, end_token="[", skip_special_tokens=True)
+                    elif "cpt" in args.model.lower():
+                        prompt = format_prompt_cpt(src_sent, src_sents, trg_sents, src_lang, trg_lang)
+                        result = generate(prompt, model, tokenizer, args, end_token="\n", skip_special_tokens=True)
+                    elif "salamandra" in args.model.lower() or "llama" in args.model.lower() or "mistral" in args.model.lower() or "eurollm" in args.model.lower():
+                        prompt = format_prompt_cpt(src_sent, src_sents, trg_sents, src_lang, trg_lang)
+                        result = generate(prompt, model, tokenizer, args, end_token="\n\n", skip_special_tokens=True)                  
+                # print(i+1, "src:", src_sent)
+                # print("\n pred:", result)
+                # print("\n  trg:", trg_sentences[i])
+                print("-"*50)
+            # remove \n from translation
+            result = result.replace("\n", " ")
+            f.write( result + "\n")
+            predictions.append(result)
+    with open(args.output_file.replace(".txt", ".jsonl"), "w", encoding="utf-8") as f:
+        for pred in predictions:
             f.write(
-                json.dumps(
-                    {
-                        "src": src_sent,
-                        "trg": trg_sentences[i],
-                        "prediction": result,
-                    },
-                    ensure_ascii=False
+                    json.dumps(
+                        {
+                            "src": src_sent,
+                            "trg": trg_sentences[i],
+                            "prediction": pred,
+                        },
+                        ensure_ascii=False
+                    )
+                    + "\n"
                 )
-                + "\n"
-            )
-        # remove \n from translation
-        result = result.replace("\n", " ")
-        with open(args.output_file.replace(".jsonl", ".txt"), "a", encoding="utf-8") as f:
-             f.write( result + "\n")
-        predictions.append(result)
     return predictions
 
 def format_general_prompt(new_sent, src_sents, trg_sents, src_lang, trg_lang):
@@ -746,7 +771,8 @@ def load_model(args):
             args.model,
             device_map=args.device_map,
             torch_dtype=DTYPE_MAP[args.dtype],
-            trust_remote_code=args.trust_remote_code,
+            # trust_remote_code=args.trust_remote_code,
+            attn_implementation='flash_attention_2',
         )
     model.eval()
     return model
@@ -800,20 +826,19 @@ def main(argv):
     print("trg_sentences:", len(trg_sentences))
     predictions = translate_sentences(model, tokenizer, src_sentences, trg_sentences, args)
     print("--- Done translating. Outputs saved to", args.output_file, "---")
-    print("--- Computing spBLEU score ---")
     print("predictions:", len(predictions))
     print("trg_sentences:", len(trg_sentences))
     spbleu_score = compute_spbleu_score(predictions, trg_sentences[:len(predictions)])
     print("-"*20)
-    print("| spBLEU score:", spbleu_score, "|")
+    print(f"|{args.lang_pair} spBLEU score: {spbleu_score} |")
     print("-"*20)
     # compute score for first 100 FLORES sentences
-    if args.test_data == "flores-101" and len(predictions) > 100:
-        spbleu_score = compute_spbleu_score(predictions[:100], trg_sentences[:100])
-        print("-"*20)
-        print("| First 100 sentences |")
-        print("| spBLEU score:", spbleu_score, "|")
-        print("-"*20)
+    # if args.test_data == "flores-101" and len(predictions) > 100:
+    #     spbleu_score = compute_spbleu_score(predictions[:100], trg_sentences[:100])
+    #     print("-"*20)
+    #     print("| First 100 sentences |")
+    #     print("| spBLEU score:", spbleu_score, "|")
+    #     print("-"*20)
 
 
 if __name__ == '__main__':
