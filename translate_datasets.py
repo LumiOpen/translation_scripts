@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import sys
 import json
 import torch
@@ -59,6 +60,7 @@ SRC_EQUALS_TRG_TEMPLATE = '{src}={trg}\n{end}\n'
 USER_ASSISTANT_TEMPLATE = '{user}{src}\n{asst}{trg}\n{end}\n'
 
 # ICL examples per language (samples from FLORES-101 and Tatoeba dev sets)
+FLORES_SENT_INDICES = [532, 136, 51, 587, 356, 119, 152, 381]
 ICL_EXAMPLES = {
     'tatoeba': {
             'eng-fin': {
@@ -330,6 +332,14 @@ def argparser():
     ap.add_argument('--icl_data', type=str, default='flores-101', help='tatoeba or flores-101')
     ap.add_argument('--format_type', type=str, default='user_assistant', help='equals, user_assistant')
     ap.add_argument('--num_examples', type=int, default=5)
+    ap.add_argument('--flores_path', type=str, default="/scratch/project_462000444/finetuning_data/FLORES-200", help="path to FLORES-200 dev sents")
+    ap.add_argument(
+        "--translate_roles",
+        type=str,
+        nargs="+",
+        default=None,
+        help="SFT roles to translate",
+    )
     return ap
 
 def detect_language(sent: str):
@@ -417,7 +427,7 @@ def translate_content(content, model, tokenizer, args, trg_lang=None, remove_per
                                                 input_ids=input_ids,
                                                 eos_token_id=tokenizer.eos_token_id,
                                                 pad_token_id=tokenizer.pad_token_id,
-                                                max_new_tokens=args.max_new_tokens
+                                                max_new_tokens=args.max_new_tokens,
                                                 forced_bos_token_id=tokenizer.lang_code_to_id[trg_lang])
                                 result = tokenizer.decode(output[0], skip_special_tokens=True)
                             elif "m2m" in args.model:
@@ -449,6 +459,12 @@ def translate_content(content, model, tokenizer, args, trg_lang=None, remove_per
                                 elif args.trg_lang == "nor":
                                     src_sents = ICL_EXAMPLES[icl_data]['eng-nor']['src']
                                     trg_sents = ICL_EXAMPLES[icl_data]['eng-nor']['trg']
+                                else:
+                                    src_lang = "eng"
+                                    flores_src_sentences = open(os.path.join(args.flores_path, src_lang+"-dev.txt")).readlines()
+                                    flores_trg_sentences = open(os.path.join(args.flores_path, trg_lang+"-dev.txt")).readlines()
+                                    src_sents = [flores_src_sentences[sent_index].strip() for sent_index in FLORES_SENT_INDICES]
+                                    trg_sents = [flores_trg_sentences[sent_index].strip() for sent_index in FLORES_SENT_INDICES]
                                 src_sents = src_sents[:args.num_examples]
                                 trg_sents = trg_sents[:args.num_examples]
                                 if remove_periods is True:
@@ -466,7 +482,7 @@ def translate_content(content, model, tokenizer, args, trg_lang=None, remove_per
                                     result = generate(prompt, model, tokenizer, args, end_token="END", skip_special_tokens=False)
                         # print("\nRESULT:\n", result)
                     translated_paragraphs.append(result)
-        translated_paragraphs = "\n".join(translated_paragraphs)
+        translated_paragraphs = "\n\n".join(translated_paragraphs)
         translated_content.append(translated_paragraphs)
     translated_content = "\n\n".join(translated_content)
     return translated_content
@@ -488,6 +504,7 @@ def translate_sft_dataset(model, tokenizer, args, trg_lang=None):
     print("Output filepath:", args.output_file)
     print("trg_lang:", trg_lang)
     print("skip_lines:", args.skip_lines)
+    print("translate_roles:", args.translate_roles)
     if "nllb" in args.model and trg_lang is not None:
         trg_lang = NLLB_LANG_MAP[trg_lang]
     data = [json.loads(line) for line in open(args.filepath)]
@@ -500,11 +517,12 @@ def translate_sft_dataset(model, tokenizer, args, trg_lang=None):
             for message in messages: 
                 role = message['role']
                 content = message['content']
-                print("\nROLE:", role)
-                print("\nSRC:\n", content)
-                translated_content = translate_content(content, model, tokenizer, args, trg_lang=trg_lang, remove_periods=False)
-                print("\nPRED:\n", translated_content)
-                translated_messages['messages'].append({"role": role, 
+                if role in args.translate_roles:
+                    print("\nROLE:", role)
+                    print("\nSRC:\n", content)
+                    translated_content = translate_content(content, model, tokenizer, args, trg_lang=trg_lang, remove_periods=False)
+                    print("\nPRED:\n", translated_content)
+                    translated_messages['messages'].append({"role": role, 
                                                         "content": translated_content,
                                                         "orig_content": content})
             if valid_entry is True:
