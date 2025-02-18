@@ -7,6 +7,10 @@ import numpy as np
 import math
 from comet import load_from_checkpoint, download_model
 import deepl
+#from google import genai
+import time
+import sys
+from litellm import completion
 
 tqdm.pandas() 
 
@@ -14,8 +18,8 @@ tqdm.pandas()
 This script translates an mt bench question file from English to a target language.
 It assumes that the text to be translated is in the column turn and references and is a flat list. 
 It checks whether an Opus model exist for the English -> target language and if not:
-use NLLB instead. Or you can set the --deepl flag and use DeepL for translation.
-It runs Comet without a reference to get an extimate of the translation.
+use NLLB instead. Or you can set the --deepl or gemini flag and use DeepL/Gemini for translation.
+It runs Comet without a reference to get an estimate of the translation quality.
 Author: Maria
 """
 
@@ -57,6 +61,52 @@ def translate_deepl(text:str, tgt_lang:str, translator) -> str:
     else:
         result = translator.translate_text(text, target_lang=tgt_lang)
         return(result.text)  
+    
+def get_lang_code_dict(value:str) -> dict:
+    """
+    Read in a csv file with alpha 2 and 3 language codes and the language name
+    Given either a language name or an alpha 2 or alpha 3 code, return a dict of the row or None
+    Query the dict with the desired value, either: alpha3-b, alpha3-t, alpha2, English, French
+    """
+    # Read the CSV file into a DataFrame
+    df = pd.read_csv('/scratch/project_462000353/maribarr/FastChat/fastchat/llm_judge/data/lang_codes.csv', 
+                     comment='#')
+    row = None     
+    for i in range(df.shape[1]):
+        # Check if the value is in either column
+        if value in df.iloc[:, i].values:
+            row = df[df.iloc[:, i] == value]
+            # returns the first match - it will not work if there are ambiguities
+            row_dict = row.to_dict(orient='records')[0]
+            return row_dict
+    if row == None:
+        return {}
+
+def translate_gemini(text:str, tgt_lang:str, translator) -> str:
+
+    lang = get_lang_code_dict(tgt_lang)['English']
+
+    instruction=f"Translate the following sentence to {lang}. Say nothing else than the translation, but keep any code or functions such that the question can be answered from your text alone. Never give the answer to the question - only translate. The sentence is: {text}"
+    print(instruction)
+
+    for attempt in range(8):
+        try:
+            response = completion(
+                model="gemini/gemini-2.0-flash-001",
+                #model="gemini/gemini-1.5-pro",
+                #model="gemini/gemini-1.5-flash",
+                messages=[{"role": "user", "content": instruction}],
+            )
+            if response and response.choices:
+                answer = response.choices[0].message.content
+                print(answer)
+                return answer
+        except Exception as e:
+            print(f"Attempt {attempt + 1} failed: {e}")
+            time.sleep(10)
+    
+    raise Exception("Failed to translate after 8 attempts")
+    
 
 def load_iso2nllb_map(filepath):
     iso2nllb_dict = {}
@@ -86,7 +136,16 @@ def run_comet(df: pd.DataFrame):
 
     print(f"Comet score: {model_output.system_score}")
 
-    
+def check_api_key():
+    """
+    Check if the API key is available in the environment.
+    """
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        print("Please set the GEMINI_API_KEY environment variable with the API key.")
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Translate text using a specified model.")
     #parser.add_argument('--src_lang', type=str, required=False, default='en', help="Source language code - two letter iso. Only supports English at the moment")
@@ -95,6 +154,7 @@ if __name__ == "__main__":
     parser.add_argument('--output-dir', type=str, required=True, help="Path to the output file")
     parser.add_argument('--max-samples', type=int, default=None, help="Only take top n rows")
     parser.add_argument('--deepl', type=bool, required=False, default=False, help="Whether to use DeepL for translation")
+    parser.add_argument('--gemini', type=bool, required=False, default=False, help="Whether to use Gemini for translation")
     args = parser.parse_args()
     
     # Load the model and tokenizer
@@ -106,6 +166,10 @@ if __name__ == "__main__":
     print(f"Translating MT bench questions from en to {args.tgt_lang}")
     print(f"Reading en questions from {args.source_file}")
 
+    if sum([args.deepl, args.gemini]) > 1:
+        print('Select either deepL or Gemini, not both')
+        sys.exit(1)
+
     using_NLLB = False # flag to specify that we use NLLB
     src_lang = 'en'
     # check if the opus model exists
@@ -113,6 +177,13 @@ if __name__ == "__main__":
         print("Using DeepL translator")
         auth_key =  os.getenv('deepl_auth_key')
         translator = deepl.Translator(auth_key)
+        translate_func = translate_deepl
+
+    if args.gemini:
+        print("Using Gemini Flash")
+        check_api_key()
+        translate_func=translate_gemini
+        translator=None
 
     elif opus_model_exists(model_name):
         print("Opus model found")
@@ -139,17 +210,17 @@ if __name__ == "__main__":
     if args.max_samples:
         df = df.head(args.max_samples)
 
-    if args.deepl:
-        df.loc[:, 'translated_turns'] = df.turns.progress_map(lambda x: [translate_deepl(text=sent,
+    if args.deepl or args.gemini:
+        df.loc[:, 'translated_turns'] = df.turns.progress_map(lambda x: [translate_func(text=sent,
                                                                                         translator=translator,
                                                                                         tgt_lang=args.tgt_lang) for sent in x]
                                                               )
 
-        df.loc[:, 'translated_reference'] = df.reference.progress_map(lambda x: [translate_deepl(text=sent,
+        df.loc[:, 'translated_reference'] = df.reference.progress_map(lambda x: [translate_func(text=sent,
                                                                                                 translator=translator,
                                                                                                 tgt_lang=args.tgt_lang)
                                                                                                 for sent in x] if type(x)==list else x
-                                                                      )
+                                                            )
 
     elif not using_NLLB:    #Then translate using Opus
         df.loc[:, 'translated_turns'] = df.turns.progress_map(lambda x: [translate_opus(sent,
