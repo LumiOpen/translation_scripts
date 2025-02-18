@@ -9,6 +9,7 @@ from comet import load_from_checkpoint, download_model
 import deepl
 #from google import genai
 import time
+import sys
 from litellm import completion
 
 tqdm.pandas() 
@@ -85,7 +86,7 @@ def translate_gemini(text:str, tgt_lang:str, translator) -> str:
 
     lang = get_lang_code_dict(tgt_lang)['English']
 
-    instruction=f"Translate the following sentence to {lang}. Say nothing else than the translation. The sentence is: {text}"
+    instruction=f"Translate the following sentence to {lang}. Say nothing else than the translation, but keep any code or functions such that the question can be answered from your text alone. Never give the answer to the question - only translate. The sentence is: {text}"
     print(instruction)
 
     for attempt in range(8):
