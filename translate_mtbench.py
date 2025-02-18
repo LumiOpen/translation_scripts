@@ -85,17 +85,27 @@ def translate_gemini(text:str, tgt_lang:str, translator) -> str:
 
     lang = get_lang_code_dict(tgt_lang)['English']
 
-    instruction=f"""Translate the following sentence to {lang}. Say nothing else than the translation. The sentence is: {text}"""
+    instruction=f"Translate the following sentence to {lang}. Say nothing else than the translation. The sentence is: {text}"
+    print(instruction)
 
-    response = completion(
-        model="gemini/gemini-2.0-flash", 
-        messages=[{"role": "user", "content": instruction}],
-    )
-    if response and response.choices:
-        answer = response.choices[0].message.content
-        return answer
-    else:
-        return "No response from the model"
+    for attempt in range(8):
+        try:
+            response = completion(
+                model="gemini/gemini-2.0-flash-001",
+                #model="gemini/gemini-1.5-pro",
+                #model="gemini/gemini-1.5-flash",
+                messages=[{"role": "user", "content": instruction}],
+            )
+            if response and response.choices:
+                answer = response.choices[0].message.content
+                print(answer)
+                return answer
+        except Exception as e:
+            print(f"Attempt {attempt + 1} failed: {e}")
+            time.sleep(10)
+    
+    raise Exception("Failed to translate after 8 attempts")
+    
 
 def load_iso2nllb_map(filepath):
     iso2nllb_dict = {}
@@ -157,7 +167,7 @@ if __name__ == "__main__":
 
     if sum([args.deepl, args.gemini]) > 1:
         print('Select either deepL or Gemini, not both')
-        exit()
+        sys.exit(1)
 
     using_NLLB = False # flag to specify that we use NLLB
     src_lang = 'en'
@@ -171,8 +181,8 @@ if __name__ == "__main__":
     if args.gemini:
         print("Using Gemini Flash")
         check_api_key()
-        translator = genai.Client(api_key=os.getenv('gemini_auth_key'))
         translate_func=translate_gemini
+        translator=None
 
     elif opus_model_exists(model_name):
         print("Opus model found")
