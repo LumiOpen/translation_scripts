@@ -218,7 +218,7 @@ if __name__ == "__main__":
         df.loc[:, 'translated_reference'] = df.reference.progress_map(lambda x: [translate_func(text=sent,
                                                                                             translator=translator,
                                                                                             tgt_lang=args.tgt_lang)
-                                                                                            for sent in x] if isinstance(x, list) else x)
+                                                                                            if len(sent) > 2 else sent for sent in x] if isinstance(x, list) else x)
     elif not using_NLLB:    #Then translate using Opus
         df.loc[:, 'translated_turns'] = df.turns.progress_map(lambda x: [translate_opus(sent,
                                                                                         tokenizer=tokenizer,
