@@ -86,7 +86,7 @@ def translate_gemini(text:str, tgt_lang:str, translator) -> str:
 
     lang = get_lang_code_dict(tgt_lang)['English']
 
-    instruction=f"Translate the following sentence to {lang}. Say nothing else than the translation, but keep any code or functions such that the question can be answered from your text alone. Never give the answer to the question - only translate. The sentence is: {text}"
+    instruction=f"Translate the following sentence to {lang}. Say nothing else than the translation, but keep any code or functions such that the question can be answered from your output alone. Never give the answer to the question or try to solve the problem - only translate. The sentence is: {text}"
     print(instruction)
 
     for attempt in range(8):
@@ -211,17 +211,14 @@ if __name__ == "__main__":
         df = df.head(args.max_samples)
 
     if args.deepl or args.gemini:
+
         df.loc[:, 'translated_turns'] = df.turns.progress_map(lambda x: [translate_func(text=sent,
                                                                                         translator=translator,
-                                                                                        tgt_lang=args.tgt_lang) for sent in x]
-                                                              )
-
+                                                                                        tgt_lang=args.tgt_lang) if len(sent) > 2 else sent for sent in x])
         df.loc[:, 'translated_reference'] = df.reference.progress_map(lambda x: [translate_func(text=sent,
-                                                                                                translator=translator,
-                                                                                                tgt_lang=args.tgt_lang)
-                                                                                                for sent in x] if type(x)==list else x
-                                                            )
-
+                                                                                            translator=translator,
+                                                                                            tgt_lang=args.tgt_lang)
+                                                                                            for sent in x] if isinstance(x, list) else x)
     elif not using_NLLB:    #Then translate using Opus
         df.loc[:, 'translated_turns'] = df.turns.progress_map(lambda x: [translate_opus(sent,
                                                                                         tokenizer=tokenizer,
