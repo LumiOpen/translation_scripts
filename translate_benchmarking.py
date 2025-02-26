@@ -378,6 +378,8 @@ def generate(prompt, model, tokenizer, args, end_token, skip_special_tokens=Fals
     print("--"*30)
     print(f"PROMPT:\n{prompt}")
     print("--"*30)
+    temperature = args.temperature
+    print("temperature=", temperature)
     input_ids = tokenizer.encode(prompt, return_tensors="pt").to("cuda")
     if "llama-3-8b" in args.model.lower():
         stop_on_token_criteria = Llama3StopOnTokenCriteria(stop_token_id=tokenizer.bos_token_id)
@@ -388,13 +390,15 @@ def generate(prompt, model, tokenizer, args, end_token, skip_special_tokens=Fals
             eos_token_id=eos_token_id,
             # max_new_tokens=args.max_new_tokens,
             max_length=dynamic_max_length,
-            stopping_criteria=StoppingCriteriaList([stop_on_token_criteria])
+            stopping_criteria=StoppingCriteriaList([stop_on_token_criteria]),
+            temperature=temperature
         )
     else:
         output = model.generate(
             input_ids,
             eos_token_id=eos_token_id,
             max_new_tokens=args.max_new_tokens,
+            temperature=temperature
         )
     result =  tokenizer.decode(output[0], skip_special_tokens=skip_special_tokens)
     if "gpt-sw3" in args.model:
@@ -424,10 +428,10 @@ def translate_sentences(model, tokenizer, src_sentences, trg_sentences, args):
         trg_sentences = trg_sentences[args.skip_lines:]
     src_lang = args.lang_pair.split("-")[0]
     trg_lang = args.lang_pair.split("-")[1]
-    if src_lang == "nob":
-        src_lang = "nor"
-    if trg_lang == "nob":
-        trg_lang = "nor"
+    # if src_lang == "nob":
+    #     src_lang = "nor"
+    # if trg_lang == "nob":
+    #     trg_lang = "nor"
     predictions = []
     print(f"trg_lang: {trg_lang}")
     print(f"src_lang: {src_lang}")
@@ -526,7 +530,7 @@ def translate_sentences(model, tokenizer, src_sentences, trg_sentences, args):
                 src_sents = src_sents[:args.num_examples]
                 trg_sents = trg_sents[:args.num_examples]
                 # Europa / Viking / Poro
-                if "europa" in args.model.lower() or "viking" in args.model.lower() or "33B" in args.model.lower():
+                if "europa" in args.model.lower() or "viking" in args.model.lower() or "poro" in args.model.lower():
                     if args.format_type == "chatml":
                         prompt = format_prompt_chatml(src_sent, src_sents, trg_sents, src_lang, trg_lang)
                         result = generate(prompt, model, tokenizer, args, end_token="<|im_end|>", skip_special_tokens=False)
@@ -767,13 +771,20 @@ def load_model(args):
         ) 
         model.to('cuda')       
     else:
-        model = AutoModelForCausalLM.from_pretrained(
-            args.model,
-            device_map=args.device_map,
-            torch_dtype=DTYPE_MAP[args.dtype],
-            # trust_remote_code=args.trust_remote_code,
-            attn_implementation='flash_attention_2',
-        )
+        if "poro" not in args.model.lower():
+            model = AutoModelForCausalLM.from_pretrained(
+                args.model,
+                device_map=args.device_map,
+                torch_dtype=DTYPE_MAP[args.dtype],
+                # trust_remote_code=args.trust_remote_code,
+                attn_implementation='flash_attention_2',
+            )
+        else:
+            model = AutoModelForCausalLM.from_pretrained(
+                args.model,
+                device_map=args.device_map,
+                torch_dtype=DTYPE_MAP[args.dtype],
+            )
     model.eval()
     return model
 
@@ -824,6 +835,8 @@ def main(argv):
         trg_sentences = open(args.trg_file).readlines()
         trg_sentences = [trg.rstrip() for trg in trg_sentences]
     print("trg_sentences:", len(trg_sentences))
+    temperature = args.temperature
+    print("temperature=", temperature)
     predictions = translate_sentences(model, tokenizer, src_sentences, trg_sentences, args)
     print("--- Done translating. Outputs saved to", args.output_file, "---")
     print("predictions:", len(predictions))
